@@ -1,7 +1,6 @@
 package motor
 
 import (
-	"log"
 	"net/http"
 	"time"
 
@@ -21,16 +20,19 @@ func responseWebsocketFetch(c *websocket.Conn, mt int, req []byte) {
 
 	err := c.WriteMessage(mt, []byte(response))
 	if err != nil {
-		log.Println("write:", err)
+		// log.Println("write:", err)
+		Error.Println("write:", err)
 		return
 	}
-	log.Println("during: ", time.Since(t1))
+	// log.Println("during: ", time.Since(t1))
+	Info.Println("during: ", time.Since(t1))
 }
 
 func websocketHandleFetch(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("Websocket upgrade:", err)
+		// log.Println("Websocket upgrade:", err)
+		Error.Println("Websocket upgrade:", err)
 		return
 	}
 	defer c.Close()
@@ -42,7 +44,8 @@ func websocketHandleFetch(w http.ResponseWriter, r *http.Request) {
 		for {
 			select {
 			case <-time.After(60 * time.Second): // if no message in one minute, close the connect
-				log.Println("connect finished")
+				// log.Println("connect finished")
+				Error.Println("connect finished")
 				c.Close()
 				return
 			case <-ch:
@@ -50,11 +53,13 @@ func websocketHandleFetch(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	log.Println("start to read from conn")
+	// log.Println("start to read from conn")
+	Info.Println("start to read from conn")
 	for {
 		mt, req, err := c.ReadMessage()
 		if err != nil {
-			log.Println("read:", err)
+			// log.Println("read:", err)
+			Error.Println("read:", err)
 			break
 		}
 		ch <- struct{}{}
@@ -64,5 +69,6 @@ func websocketHandleFetch(w http.ResponseWriter, r *http.Request) {
 
 func WebSocketRun(addr string) {
 	http.HandleFunc("/", websocketHandleFetch)
-	log.Fatal(http.ListenAndServe(addr, nil))
+	// log.Fatal(http.ListenAndServe(addr, nil))
+	Info.Fatal(http.ListenAndServe(addr, nil))
 }

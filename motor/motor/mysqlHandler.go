@@ -3,7 +3,6 @@ package motor
 import (
 	"database/sql"
 	"encoding/json"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -59,19 +58,22 @@ func updateLastTime(db *sql.DB, lastTime string) {
 	sqlString := "update `info` set value = '" + lastTime + "' where field = 'lastTime'"
 	res, err := db.Exec(sqlString)
 	if err != nil {
-		log.Println("Update failed: ", err)
+		// log.Println("Update failed: ", err)
+		Error.Println("Update failed: ", err)
 		return
 	}
 	countAff, err := res.RowsAffected()
 	if err != nil {
-		log.Println("RowsAffected failed:", err)
+		// log.Println("RowsAffected failed:", err)
+		Error.Println("RowsAffected failed:", err)
 		return
 	}
 	if countAff == 0 { // if lastTime doesn't exist, insert it
 		sqlString = "insert into `info` values ('lastTime', '" + lastTime + "')"
 		_, err := db.Exec(sqlString)
 		if err != nil {
-			log.Println("Insert failed: ", err)
+			// log.Println("Insert failed: ", err)
+			Error.Println("Insert failed: ", err)
 			return
 		}
 	}
@@ -81,7 +83,8 @@ func updateLastTime(db *sql.DB, lastTime string) {
 func createTable(db *sql.DB, para, ymd string) {
 	sqlString := "create table `" + para + "_" + ymd + "` ( `create_time` TIME NOT NULL, `value` varchar(" + valueLength[para] + ") NOT NULL, PRIMARY KEY (`create_time`) ) ENGINE=InnoDB;"
 	if _, err := db.Exec(sqlString); err != nil {
-		log.Println("create table failed:", err)
+		// log.Println("create table failed:", err)
+		Error.Println("create table failed:", err)
 		return
 	}
 	// fmt.Println("create table successd: ", para)
@@ -91,7 +94,8 @@ func createTable(db *sql.DB, para, ymd string) {
 func tableExist(db *sql.DB, tableName string) bool {
 	_, err := db.Query("select value from `" + tableName + "` limit 1") // ? = placeholder
 	if err != nil {
-		log.Println(tableName, "doesn't exist: ", err) // proper error handling instead of panic in your app
+		// log.Println(tableName, "doesn't exist: ", err) // proper error handling instead of panic in your app
+		Error.Println(tableName, "doesn't exist: ", err) // proper error handling instead of panic in your app
 		return false
 	} else {
 		// fmt.Printf("%T, %v\n", res, res)
@@ -113,7 +117,10 @@ func mysqlInsert(db *sql.DB, n *sync.WaitGroup, para, ymd, hms, data string) {
 	sqlString := "insert into `" + tableName + "` values(?, ?)"
 	_, err := db.Exec(sqlString, hms, data[:len(data)-1])
 	if err != nil {
-		log.Printf("Insert data failed in %v, err:%v\n", para, err)
+		// log.Printf("Insert data failed in %v, err:%v\n", para, err)
+		Error.Printf("Insert data failed in %v, err:%v\n", para, err)
+		// if fail to insert, try create table
+		createTable(db, para, ymd)
 		return
 	}
 }
@@ -124,7 +131,8 @@ func getLastTime(db *sql.DB) string {
 	var lastTime string
 	res := db.QueryRow(sqlString)
 	if err := res.Scan(&lastTime); err != nil {
-		log.Println("Get last time failed: ", err)
+		// log.Println("Get last time failed: ", err)
+		Error.Println("Get last time failed: ", err)
 	}
 	return lastTime
 
@@ -137,14 +145,15 @@ func mysqlFetch(db *sql.DB, para, ymd, hms string) []string {
 	sqlString := "select value from `" + tableName + "` where create_time = '" + hms + "'"
 	res := db.QueryRow(sqlString)
 	if err := res.Scan(&data); err != nil {
-		log.Println("Failed to fetch data from mysql: ", err)
+		// log.Println("Failed to fetch data from mysql: ", err)
+		Error.Println("Failed to fetch data from mysql: ", err)
 	}
 	return strings.Split(data, "/") // return an array of data
 }
 
 func mysqlUpload(req map[string]string, serial_number, create_time string) error {
 	// set for mysql connection
-	connection := mysqlInfo.user + ":" + mysqlInfo.password + "@tcp(127.0.0.1:" + mysqlInfo.port + ")/motor_" + serial_number
+	connection := mysqlInfo.user + ":" + mysqlInfo.password + "@tcp(motor-mysql:" + mysqlInfo.port + ")/motor_" + serial_number
 	db, err := sql.Open("mysql", connection)
 	if err != nil {
 		return err
@@ -171,7 +180,7 @@ func mysqlUpload(req map[string]string, serial_number, create_time string) error
 
 // connect to mysql and cak fetch data function with the request parameters
 func handleFetchSql(serialNumber, startTime string, parameters []string) string {
-	connection := mysqlInfo.user + ":" + mysqlInfo.password + "@tcp(127.0.0.1:" + mysqlInfo.port + ")/motor_" + serialNumber
+	connection := mysqlInfo.user + ":" + mysqlInfo.password + "@tcp(motor-mysql:" + mysqlInfo.port + ")/motor_" + serialNumber
 	db, err := sql.Open("mysql", connection)
 	if err != nil {
 		panic(err)
@@ -205,7 +214,8 @@ func handleFetchSql(serialNumber, startTime string, parameters []string) string 
 	m["fault"] = faultValues
 	response, err := json.Marshal(m)
 	if err != nil {
-		log.Fatalf("JSON marshaling failed: %s", err)
+		// log.Fatalf("JSON marshaling failed: %s", err)
+		Error.Fatalf("JSON marshaling failed: %s", err)
 	}
 	return string(response)
 }

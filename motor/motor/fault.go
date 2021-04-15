@@ -2,7 +2,6 @@ package motor
 
 import (
 	"database/sql"
-	"log"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,7 +53,8 @@ func faultUpload(db *sql.DB, n *sync.WaitGroup, para, data, create_time string) 
 	valueString := strings.Split(data, "/")
 	value, err := strconv.ParseFloat(valueString[0], 64)
 	if err != nil {
-		log.Println("Failed to converse value: ", para, err)
+		// log.Println("Failed to converse value: ", para, err)
+		Error.Println("Failed to converse value: ", para, err)
 		return
 	}
 	if value < minThreshold[para] || value > maxThreshold[para] {
@@ -62,7 +62,8 @@ func faultUpload(db *sql.DB, n *sync.WaitGroup, para, data, create_time string) 
 		sqlString := "insert into fault values (?, ?)"
 		_, err := db.Exec(sqlString, "'"+para+create_time+"'", valueString[0])
 		if err != nil {
-			log.Println("Failed to insert falut: ", para, err)
+			//log.Println("Failed to insert falut: ", para, err)
+			Error.Println("Failed to insert falut: ", para, err)
 			return
 		}
 		// do something, such as sending error data, to be continued...
@@ -73,7 +74,8 @@ func faultUpload(db *sql.DB, n *sync.WaitGroup, para, data, create_time string) 
 func faultFetch(para, data string) (bool, []string) {
 	value, err := strconv.ParseFloat(data, 64)
 	if err != nil {
-		log.Println("Failed to converse value: ", para, err)
+		//log.Println("Failed to converse value: ", para, err)
+		Error.Println("Failed to converse value: ", para, err)
 		return false, nil
 	}
 	if value < minThreshold[para] || value > maxThreshold[para] {

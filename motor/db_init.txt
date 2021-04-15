@@ -1,0 +1,3 @@
+create database motor_406;
+create table motor_406.fault (fault varchar(40), value varchar(10));
+create table motor_406.info (field varchar(20), value varchar(20));

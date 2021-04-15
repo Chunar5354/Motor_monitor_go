@@ -3,7 +3,6 @@ package motor
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"strings"
 	"time"
 
@@ -40,7 +39,7 @@ func redisFetch(rdb *redis.Client, serialNumber, para, createTime string) []stri
 func redisUpload(req map[string]string, serial_number, create_time string) error {
 	// set for redis
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:" + redisInfo.port,
+		Addr:     "motor-redis:" + redisInfo.port,
 		Password: redisInfo.password, // no password set
 		DB:       redisInfo.db,       // use default DB
 	})
@@ -62,7 +61,7 @@ func redisUpload(req map[string]string, serial_number, create_time string) error
 // create redis connection and call detchData function to get data from redis
 func haldleRedis(serialNumber, startTime string, parameters []string) string {
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:" + redisInfo.port,
+		Addr:     "motor-redis:" + redisInfo.port,
 		Password: redisInfo.password, // no password set
 		DB:       redisInfo.db,       // use default DB
 	})
@@ -71,7 +70,8 @@ func haldleRedis(serialNumber, startTime string, parameters []string) string {
 		// if doesn't give a time, get the newest data, firstly get last time
 		lastTime, err := rdb.Get(ctx, serialNumber+"lastTime").Result()
 		if err == redis.Nil {
-			log.Println("No result in redis")
+			// log.Println("No result in redis")
+			Error.Println("No result in redis")
 			return ""
 		}
 		createTime = lastTime
@@ -81,14 +81,16 @@ func haldleRedis(serialNumber, startTime string, parameters []string) string {
 	for _, para := range parameters {
 		redisResult := redisFetch(rdb, serialNumber, para, createTime)
 		if redisResult == nil {
-			log.Println("No result in redis:", para)
+			// log.Println("No result in redis:", para)
+			Error.Println("No result in redis:", para)
 			return ""
 		}
 		m[para] = redisResult
 	}
 	response, err := json.Marshal(m)
 	if err != nil {
-		log.Fatalf("JSON marshaling failed: %s", err)
+		// log.Fatalf("JSON marshaling failed: %s", err)
+		Error.Fatalf("JSON marshaling failed: %s", err)
 	}
 	return string(response)
 }
