@@ -7,15 +7,25 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{} // use default options
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+} // use default options
 
-func responseWebsocketFetch(c *websocket.Conn, mt int, req []byte) {
-	request := ParseFetchMessage(req)
+func responseWebsocketFetch(c *websocket.Conn, mt int, request []byte) {
+	req := ParseFetchMessage(request)
 	t1 := time.Now()
-
-	response := haldleRedis(request.SerialNumber, request.Start, request.Parameters)
-	if response == "" {
-		response = handleFetchSql(request.SerialNumber, request.Start, request.Parameters)
+	
+	var response string
+	// 如果只查询故障信息就不需要访问Redis
+	if req.OnlyFault == "true" {
+		response = handleFetchSql(req.SerialNumber, req.Start, req.OnlyFault, req.Parameters)
+	} else {
+		response = haldleRedis(req.SerialNumber, req.Start, req.Parameters)
+		if response == "" {
+			response = handleFetchSql(req.SerialNumber, req.Start, req.OnlyFault, req.Parameters)
+		}
 	}
 
 	err := c.WriteMessage(mt, []byte(response))

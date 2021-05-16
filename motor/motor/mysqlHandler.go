@@ -153,7 +153,7 @@ func mysqlFetch(db *sql.DB, para, ymd, hms string) []string {
 
 func mysqlUpload(req map[string]string, serial_number, create_time string) error {
 	// set for mysql connection
-	connection := mysqlInfo.user + ":" + mysqlInfo.password + "@tcp(motor-mysql:" + mysqlInfo.port + ")/motor_" + serial_number
+	connection := mysqlInfo.user + ":" + mysqlInfo.password + "@tcp(localhost:" + mysqlInfo.port + ")/motor_" + serial_number
 	db, err := sql.Open("mysql", connection)
 	if err != nil {
 		return err
@@ -179,8 +179,8 @@ func mysqlUpload(req map[string]string, serial_number, create_time string) error
 }
 
 // connect to mysql and cak fetch data function with the request parameters
-func handleFetchSql(serialNumber, startTime string, parameters []string) string {
-	connection := mysqlInfo.user + ":" + mysqlInfo.password + "@tcp(motor-mysql:" + mysqlInfo.port + ")/motor_" + serialNumber
+func handleFetchSql(serialNumber, startTime, onlyFault string, parameters []string) string {
+	connection := mysqlInfo.user + ":" + mysqlInfo.password + "@tcp(localhost:" + mysqlInfo.port + ")/motor_" + serialNumber
 	db, err := sql.Open("mysql", connection)
 	if err != nil {
 		panic(err)
@@ -197,21 +197,27 @@ func handleFetchSql(serialNumber, startTime string, parameters []string) string 
 	if createTime == "" {
 		createTime = getLastTime(db)
 	}
+
+	// 只查询故障数据
+	if onlyFault == "true" {
+		return fetchOnlyFault(db, createTime, parameters)
+	}
+
 	m["create_time"] = createTime
 	ymd := createTime[:10] // year-month-day, use in table name in mysql
 	hms := createTime[11:] // hour-minute-second, use as primary key in mysql
-	var faultValues [][]string
+	faultMsg := make(map[string]string)
 	m["status"] = 200  // ok status
 	for _, para := range parameters {
 		data := mysqlFetch(db, para, ymd, hms)
 		m[para] = data
-		fault, values := faultFetch(para, data[0])  // add fault values
+		fault, faultValue := faultFetch(para, data[0])  // add fault values
 		if fault {
 			m["status"] = 400  // fault status
-			faultValues = append(faultValues, values)
+			faultMsg[para] = faultValue
 		}
 	}
-	m["fault"] = faultValues
+	m["fault"] = faultMsg
 	response, err := json.Marshal(m)
 	if err != nil {
 		// log.Fatalf("JSON marshaling failed: %s", err)

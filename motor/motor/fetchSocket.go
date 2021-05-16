@@ -13,9 +13,10 @@ import (
 type Request struct { // 被解析的字段必须要大写
 	SerialNumber string   `json:"serial_number"`
 	Parameters   []string `json:"parameter"`
-	Limit        string
-	Start        string
-	End          string
+	Limit        string   `json:"limit"`
+	OnlyFault    string   `json:"onlyfault"`
+	Start        string   `json:"start"`
+	End          string   `json:"end"`
 }
 
 // parse the request message
@@ -34,9 +35,15 @@ func responseFetch(c net.Conn, request []byte) {
 	t1 := time.Now()
 	req := ParseFetchMessage(request) // get information from request
 	// firstly fetch from redis, if data not in redis, then fetcj from mysql
-	response := haldleRedis(req.SerialNumber, req.Start, req.Parameters)
-	if response == "" {
-		response = handleFetchSql(req.SerialNumber, req.Start, req.Parameters)
+	var response string
+	// 如果只查询故障信息就不需要访问Redis
+	if req.OnlyFault == "true" {
+		response = handleFetchSql(req.SerialNumber, req.Start, req.OnlyFault, req.Parameters)
+	} else {
+		response = haldleRedis(req.SerialNumber, req.Start, req.Parameters)
+		if response == "" {
+			response = handleFetchSql(req.SerialNumber, req.Start, req.OnlyFault, req.Parameters)
+		}
 	}
 
 	// 发送响应

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"encoding/json"
 )
 
 var maxThreshold = map[string]float64{
@@ -60,7 +61,7 @@ func faultUpload(db *sql.DB, n *sync.WaitGroup, para, data, create_time string) 
 	if value < minThreshold[para] || value > maxThreshold[para] {
 		// insert falue value into mysql
 		sqlString := "insert into fault values (?, ?)"
-		_, err := db.Exec(sqlString, "'"+para+create_time+"'", valueString[0])
+		_, err := db.Exec(sqlString, para+create_time, valueString[0])
 		if err != nil {
 			//log.Println("Failed to insert falut: ", para, err)
 			Error.Println("Failed to insert falut: ", para, err)
@@ -71,15 +72,39 @@ func faultUpload(db *sql.DB, n *sync.WaitGroup, para, data, create_time string) 
 }
 
 // while fetching data, if there is fault, send it back to client
-func faultFetch(para, data string) (bool, []string) {
+func faultFetch(para, data string) (bool, string) {
 	value, err := strconv.ParseFloat(data, 64)
 	if err != nil {
 		//log.Println("Failed to converse value: ", para, err)
 		Error.Println("Failed to converse value: ", para, err)
-		return false, nil
+		return false, ""
 	}
 	if value < minThreshold[para] || value > maxThreshold[para] {
-		return true, []string{para, data}
+		return true, data
 	}
-	return false, nil
+	return false, ""
+}
+
+func fetchOnlyFault(db *sql.DB, create_time string, parameters []string) string {
+	m := make(map[string]interface{})
+	faultMsg := make(map[string]string)
+
+	sqlString := "select value from fault where fault = '"
+	for _, para := range parameters {
+		var faultValue string
+		res := db.QueryRow(sqlString + para + create_time + "'")
+		if err := res.Scan(&faultValue); err != nil {
+			Error.Println("Get fault value failed: ", err)
+		}
+		faultMsg[para] = faultValue
+	}
+
+	m["create_time"] = create_time
+	m["fault"] = faultMsg
+	response, err := json.Marshal(m)
+	if err != nil {
+		// log.Fatalf("JSON marshaling failed: %s", err)
+		Error.Fatalf("JSON marshaling failed: %s", err)
+	}
+	return string(response)
 }

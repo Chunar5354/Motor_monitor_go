@@ -39,7 +39,7 @@ func redisFetch(rdb *redis.Client, serialNumber, para, createTime string) []stri
 func redisUpload(req map[string]string, serial_number, create_time string) error {
 	// set for redis
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "motor-redis:" + redisInfo.port,
+		Addr:     "localhost:" + redisInfo.port,
 		Password: redisInfo.password, // no password set
 		DB:       redisInfo.db,       // use default DB
 	})
@@ -61,7 +61,7 @@ func redisUpload(req map[string]string, serial_number, create_time string) error
 // create redis connection and call detchData function to get data from redis
 func haldleRedis(serialNumber, startTime string, parameters []string) string {
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "motor-redis:" + redisInfo.port,
+		Addr:     "localhost:" + redisInfo.port,
 		Password: redisInfo.password, // no password set
 		DB:       redisInfo.db,       // use default DB
 	})
